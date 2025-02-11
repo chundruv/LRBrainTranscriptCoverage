@@ -2,16 +2,12 @@ library(shiny)
 library(bslib)
 library(plotly)
 library(dplyr)
-library(rtracklayer)
 library(ggplot2)
-library(GenomicRanges)
+library(R.utils)
 library(data.table)
+library(readr)
 
-
-# Load the GTF file and the bigWig data (replace with your actual paths)
-gtf_gr <- import.gff(con = 'https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/current/MANE.GRCh38.v1.4.ensembl_genomic.gtf.gz', format = "gtf")
-mane<-fread('http://ftp.ensembl.org/pub/data_files/homo_sapiens/GRCh38/mane/current/MANE.GRCh38.v1.3.transcripts_by_gene.tsv', stringsAsFactors = F, data.table=F)
-gtf_gr<-gtf_gr[(gtf_gr$type=='gene') | (gtf_gr$transcript_id%in%mane$MANE_Select_Ensembl_id)]
+transcripts<-fread('https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/transcripts.txt', stringsAsFactors = F, data.table = F)
 
 # Define UI
 ui <- fluidPage(
@@ -85,54 +81,9 @@ server <- function(input, output) {
                       postnataladult_exp=mean(postnataladult_exp), postnatalelderly_exp=mean(postnatalelderly_exp))
         as.data.frame(tmp)
     }, ignoreNULL = T)
-
-    
-    # Reactive expression to process gene annotations
-    dataset2 <- eventReactive(input$submit, {
-        as.data.frame(gtf_gr[gtf_gr$gene_name == input$gene & gtf_gr$type == 'exon'])
-    }, ignoreNULL = T)
-    
-    dataset3 <- eventReactive(input$submit, {
-        gtf_exons <- gtf_gr[gtf_gr$gene_name == input$gene & gtf_gr$type == 'exon', ]
-        gtf_transcript <- gtf_gr[gtf_gr$gene_name == input$gene & gtf_gr$type == 'transcript', ]
-        gtf_introns <- GenomicRanges::setdiff(gtf_transcript, gtf_exons)
-        gtf_introns$transcript_id <- unique(gtf_exons$transcript_id)
-        as.data.frame(gtf_introns)
-    }, ignoreNULL = T)
     
     geneshapes<-eventReactive(input$submit, {
-        shapes <- list()
-        
-        # Add exon shapes
-        for(i in 1:nrow(dataset2())) {
-            exon <- dataset2()[i, ]
-            shapes[[length(shapes) + 1]] <- list(
-                type = "scatter",
-                mode = "rect",
-                x0 = exon$start, x1 = exon$end,
-                y0 = 0.7, y1 = 1.3,
-                fillcolor = 'black',
-                line = list(color = "black"),
-                text = paste0('Transcript ID: ', exon$transcript_id, '\nExon ID: ', 
-                              exon$exon_id, '\nExon range: ', exon$seqnames, ':', 
-                              exon$start, '-', exon$end),
-                hoverinfo='text'
-            )
-        }
-        #Intron lines
-        for(i in 1:nrow(dataset3())) {
-            intron <- dataset3()[i, ]
-            shapes[[length(shapes) + 1]] <- list(
-                type = "line",
-                x0 = intron$start, x1 = intron$end,
-                y0 = 1, y1 = 1,
-                line = list(color = "grey", width = 3),
-                text = paste0('Transcript ID: ', intron$transcript_id, '\nIntron range: ', 
-                              intron$seqnames, ':',intron$start, '-', intron$end),
-                hoverinfo='text'
-            )
-        }
-        shapes
+        read_rds(paste0('https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/data/',input$gene,'.RDS'))
     }, ignoreNULL = T)
     
     # Render the plot
@@ -142,18 +93,28 @@ server <- function(input, output) {
 
         for(i in unique(c(input$Groups1,input$Groups2,input$Groups3))){
             j <- switch(i,
-                   'total_exp' = "#999999",
-                   'prenatal_exp' = "#E69F00",
-                   'postnatal_exp' = "#56B4E9",
-                   'prenatal1sttrimester_exp' = "#009E73",
-                   'prenatal2ndtrimester_exp' = "#CC79A7",
-                   'prenatal3rdtrimester_exp' = "#0072B2",
-                   'postnatalchild_exp' = "#D55E00",
-                   'postnataladult_exp' = "#41ab5d",
-                   'postnatalelderly_exp' = "#000000")
+                        'total_exp' = "#999999",
+                        'prenatal_exp' = "#E69F00",
+                        'postnatal_exp' = "#56B4E9",
+                        'prenatal1sttrimester_exp' = "#009E73",
+                        'prenatal2ndtrimester_exp' = "#CC79A7",
+                        'prenatal3rdtrimester_exp' = "#0072B2",
+                        'postnatalchild_exp' = "#D55E00",
+                        'postnataladult_exp' = "#41ab5d",
+                        'postnatalelderly_exp' = "#000000")
+            k <- switch(i,
+                        'total_exp' = "Total expression",
+                        'prenatal_exp' = "Prenatal expression",
+                        'postnatal_exp' = "Postnatal expression",
+                        'prenatal1sttrimester_exp' = "1st trimester expression",
+                        'prenatal2ndtrimester_exp' = "2nd trimester expression",
+                        'prenatal3rdtrimester_exp' = "3rd trimester expression",
+                        'postnatalchild_exp' = "Child expression",
+                        'postnataladult_exp' = "Adult expression",
+                        'postnatalelderly_exp' = "Older adult expression")
 
                 p[[i]] <- plotly_build(plot_ly() %>% add_trace(dataset1(), x = dataset1()$midpos, y = dataset1()[,i], 
-                                       color=~I(j), width = 10, type = 'bar', name=i, hoverinfo = "text", hovertext= 
+                                       color=~I(j), width = 10, type = 'bar', name=k, hoverinfo = "text", hovertext= 
                                        ~paste('<br><b>Position range</b>: ',dataset1()$chr,':',dataset1()$minpos,'-',dataset1()$maxpos,'<br>',
                                              
                                              '<br><b>Group</b>: ',i,'<br>',
@@ -196,8 +157,16 @@ server <- function(input, output) {
         p2<-p2%>%layout(shapes = geneshapes(), xaxis=list(showgrid = FALSE,showticklabels = TRUE,title=""), 
                         yaxis=list(title = "", showgrid = FALSE, showticklabels = FALSE))
 
+        if(transcripts[which(transcripts$gene_name==input$gene),3]=='+'){
+            strand<-'+ (\u2192)'
+        }else if(transcripts[which(transcripts$gene_name==input$gene),3]=='-'){
+            strand<-'- (\u2190)'
+        }else{
+            strand<-''
+        }
         subplot(p1,p2, nrows=2, heights = c(0.9,0.1), shareX = T)%>%
-            layout(title = list(text = paste0("Gene: ", input$gene,"\nMANEselect: ", unique(dataset3()$transcript_id))), margin=list(t=50))
+            layout(title = list(text = paste0("Gene: ", input$gene, ';\tStrand: ', strand, "\nMANEselect: ", 
+                                              transcripts[which(transcripts$gene_name==input$gene),2])), margin=list(t=50))
 
     }, ignoreNULL = T)
     
