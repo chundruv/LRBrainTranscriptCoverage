@@ -51,7 +51,7 @@ ui <- fluidPage(
                 ),
                 selected = c()
             ),
-            actionButton("submit", "Submit"),
+            actionButton("submit", "Submit!"),
             radioButtons("rb", "Scale", choiceNames = list("Linear", "Log(1-pext)"), choiceValues = list("linear", "log")) 
         ),
         
@@ -65,19 +65,16 @@ ui <- fluidPage(
 
 # Define server logic
 server <- function(input, output) {
-    
+
+
     # Reactive expression to load and process expression data for selected groups
     dataset <- eventReactive(input$submit, {
-        if(exists(x1)){
-            if(input$Gene%in%x1$gene){
-                return(x1)
-        }}
-        x1 <- fread(paste0('https://data.cyverse.org/dav-anon/iplant/home/chundruv/lr_brain_coverage/',input$gene,'.txt.gz'), stringsAsFactors=F, data.table=F)
+        x1 <- fread(paste0('https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/data/',input$gene,'.txt.gz'), stringsAsFactors=F, data.table=F)
         names(x1)<-c('chr', 'pos', 'gene', 'total_exp', 'prenatal_exp', 'postnatal_exp', 'prenatal1sttrimester_exp', 
                      'prenatal2ndtrimester_exp', 'prenatal3rdtrimester_exp', 'postnatalchild_exp', 'postnataladult_exp','postnatalelderly_exp')
         x1$bins <- cut_interval(x1$pos, length=10)
         x1
-    })
+    }, ignoreNULL = T)
     
     dataset1 <- eventReactive(input$submit, {
         tmp<-dataset()%>%group_by(bins)%>%
@@ -87,13 +84,13 @@ server <- function(input, output) {
                       prenatal3rdtrimester_exp=mean(prenatal3rdtrimester_exp), postnatalchild_exp=mean(postnatalchild_exp), 
                       postnataladult_exp=mean(postnataladult_exp), postnatalelderly_exp=mean(postnatalelderly_exp))
         as.data.frame(tmp)
-    })
+    }, ignoreNULL = T)
 
     
     # Reactive expression to process gene annotations
     dataset2 <- eventReactive(input$submit, {
         as.data.frame(gtf_gr[gtf_gr$gene_name == input$gene & gtf_gr$type == 'exon'])
-    })
+    }, ignoreNULL = T)
     
     dataset3 <- eventReactive(input$submit, {
         gtf_exons <- gtf_gr[gtf_gr$gene_name == input$gene & gtf_gr$type == 'exon', ]
@@ -101,7 +98,7 @@ server <- function(input, output) {
         gtf_introns <- GenomicRanges::setdiff(gtf_transcript, gtf_exons)
         gtf_introns$transcript_id <- unique(gtf_exons$transcript_id)
         as.data.frame(gtf_introns)
-    })
+    }, ignoreNULL = T)
     
     geneshapes<-eventReactive(input$submit, {
         shapes <- list()
@@ -136,7 +133,7 @@ server <- function(input, output) {
             )
         }
         shapes
-    })
+    }, ignoreNULL = T)
     
     # Render the plot
     
@@ -202,7 +199,7 @@ server <- function(input, output) {
         subplot(p1,p2, nrows=2, heights = c(0.9,0.1), shareX = T)%>%
             layout(title = list(text = paste0("Gene: ", input$gene,"\nMANEselect: ", unique(dataset3()$transcript_id))), margin=list(t=50))
 
-    })
+    }, ignoreNULL = T)
     
     output$plot<-renderPlotly({plot()})
     
