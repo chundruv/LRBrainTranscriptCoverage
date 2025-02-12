@@ -47,14 +47,17 @@ ui <- fluidPage(
                 ),
                 selected = c()
             ),
-            actionButton("submit", "Submit!"),
-            radioButtons("rb", "Scale", choiceNames = list("Linear", "Log(1-pext)"), choiceValues = list("linear", "log")) 
+            actionButton("submit", "Submit!", icon("paper-plane"),style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+            radioButtons("rb", "Scale", choiceNames = list("Linear", "Log"), choiceValues = list("linear", "log")) 
         ),
         
         # Main panel for plot
         card(
             full_screen = TRUE,
             plotlyOutput("plot")
+        ),
+        card(
+            htmlOutput("text")
         )
     )
 )
@@ -90,7 +93,6 @@ server <- function(input, output) {
     
     plot<-eventReactive(input$submit,{
         p<-list()
-
         for(i in unique(c(input$Groups1,input$Groups2,input$Groups3))){
             j <- switch(i,
                         'total_exp' = "#999999",
@@ -113,6 +115,7 @@ server <- function(input, output) {
                         'postnataladult_exp' = "Adult expression",
                         'postnatalelderly_exp' = "Older adult expression")
 
+            if(input$rb=='linear'){
                 p[[i]] <- plotly_build(plot_ly() %>% add_trace(dataset1(), x = dataset1()$midpos, y = dataset1()[,i], 
                                        color=~I(j), width = 10, type = 'bar', name=k, hoverinfo = "text", hovertext= 
                                        ~paste('<br><b>Position range</b>: ',dataset1()$chr,':',dataset1()$minpos,'-',dataset1()$maxpos,'<br>',
@@ -125,13 +128,30 @@ server <- function(input, output) {
                                            showgrid = FALSE,
                                            showticklabels = FALSE  # Hide axis labels and ticks
                                        ),
-                                       yaxis = list(type = input$rb,
-                                           title = "", range<-c(0,1)
+                                       yaxis = list(range=c(0,1),
+                                           title = "", tickmode="array", tickvals=c(0,0.25,0.5,0.75,1)
                                        )))
+            }else{
+                p[[i]] <- plotly_build(plot_ly() %>% add_trace(dataset1(), x = dataset1()$midpos, y = dataset1()[,i], 
+                                                               color=~I(j), width = 10, type = 'bar', name=k, hoverinfo = "text", hovertext= 
+                                                                   ~paste('<br><b>Position range</b>: ',dataset1()$chr,':',dataset1()$minpos,'-',dataset1()$maxpos,'<br>',
+                                                                          
+                                                                          '<br><b>Group</b>: ',i,'<br>',
+                                                                          
+                                                                          '<br><b>Mean PEXT</b>: ',format(round(dataset1()[,i], 4), nsmall = 4),'<br>'))%>%
+                                           layout(hovermode = 'x unified', xaxis = list(
+                                               title = "",
+                                               showgrid = FALSE,
+                                               showticklabels = FALSE  # Hide axis labels and ticks
+                                           ),
+                                           yaxis = list(type = 'log', range=c(-5,0), nticks=4,
+                                                        title = ""
+                                           )))
+            }
         }
 
-        p1<-subplot(p, nrows = length(c(input$Groups1,input$Groups2,input$Groups3)), shareX = TRUE, shareY = TRUE)%>%layout(hovermode = 'x unified', xaxis = list(
-            title = "", 
+        p1<-subplot(p, nrows = length(c(input$Groups1,input$Groups2,input$Groups3)), shareX = TRUE, shareY = TRUE)%>%
+            layout(hovermode = 'x unified', xaxis = list(title = "", 
             showgrid = FALSE,
             showticklabels = FALSE
         ),
@@ -171,7 +191,15 @@ server <- function(input, output) {
     }, ignoreNULL = T)
     
     output$plot<-renderPlotly({plot()})
-    
+    text<-eventReactive(input$submit,{
+        gn=transcripts[which(transcripts$gene_name==input$gene),]
+        HTML("Number of reads = ", gn$nreads, 
+               "<br>Number of unique transcript isoforms = ", gn$ntranscripts, 
+               "<br>Number of FSM transcripts = ", gn$nFSM, " (", gn$nFSMreads, ' reads)', 
+               "<br>Number of ISM transcripts = ", gn$nISM, " (", gn$nISMreads, ' reads)',
+               "<br>Number of NIC transcripts = ", gn$nNIC, " (", gn$nNICreads, ' reads)',
+               "<br>Number of NNC transcripts = ", gn$nNNC, " (", gn$nNNCreads, ' reads)',)}, ignoreNULL = T)
+    output$text<-renderText({text()})
 }
 
 # Run the application 
