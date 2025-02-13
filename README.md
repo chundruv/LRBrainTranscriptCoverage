@@ -4,7 +4,7 @@ This is a shiny app to visualise the coverage of regions expressed across differ
 
 The y-axis on the plots is similar to a PEXT score, however unlike the PEXT score (which is calucalted using short-read RNAseq from GTeX) we have the full-length transcript isoforms. In our case, the score represents how often a base is included in transcripts found in the frontal cortex
 
-For visualisation of the individual transcript isoforms see isoforms.com
+For visualisation of the individual transcript isoforms see isoforms.com, and https://www.epigenomicslab.com/brainisoform/ for more details
 
 To run the app, you can run locally using the `app.R` or visit https://chundruvk.shinyapps.io/LRBrainCoverage/
 
