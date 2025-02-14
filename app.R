@@ -7,6 +7,7 @@ library(R.utils)
 library(data.table)
 library(readr)
 library(shinydisconnect)
+library(shinycssloaders)
 
 transcripts<-fread('https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/transcripts.txt', stringsAsFactors = F, data.table = F)
 
@@ -15,18 +16,29 @@ ui <- fluidPage(
     disconnectMessage(text = "App disconnected. Please see https://github.com/chundruv/LRBrainTranscriptCoverage. Run the app.R locally, no need to download data files",
                       refresh = "",
                       background = "#646464e6",
-                      size = 36,
+                      size = 35,
                       width = "full",
                       top = "center",
                       colour = "white",
                       overlayColour = "#999",
                       overlayOpacity = 0.4),
-    titlePanel("Long read brain coverage"),
+    titlePanel(windowTitle = "Long read brain coverage",
+        fluidRow(
+            column(9, "Long read brain coverage"), 
+            column(3, list(tags$a(img(src="https://github.githubassets.com/assets/GitHub-Mark-ea2971cee799.png", width="50", height="50"), 
+                                  href="https://github.com/chundruv/LRBrainTranscriptCoverage"),
+                           tags$a(img(src="https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/logos/paradigm.png", width="150", 
+                                      height="50"), href="https://paradigmgenomics.org"),
+                           tags$a(img(src="https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/logos/hdr-cpg.png",width="100",
+                                      height="50"), href="https://www.epigenomicslab.com/brainisoform/")))
+        )
+    ),
     theme = shinythemes::shinytheme("united"),
     # Sidebar for inputs
     page_sidebar(
         sidebar = sidebar(width = 250,
                           textInput("gene", label = "Gene Name", value = "MYCBP2"),
+                          numericInput("width", label = "Number of bases to group by (for basepair resolution, enter 1, may be slower)", value=10),
                           checkboxGroupInput(
                               "Groups1", 
                               label = "Broad developmental groups", 
@@ -58,38 +70,27 @@ ui <- fluidPage(
                               selected = c()
                           ),
                           actionButton("submit", "Submit!", icon("paper-plane"),style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
-                          radioButtons("rb", "Scale", choiceNames = list("Linear", "Log"), choiceValues = list("linear", "log")),
-                          tags$footer(tags$a(img(src="https://github.githubassets.com/assets/GitHub-Mark-ea2971cee799.png", width="50",
-                                     height="50"),
-                                 href="https://github.com/chundruv/LRBrainTranscriptCoverage"),
-                          tags$a(img(src="https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/logos/paradigm.png", 
-                                     width="140", height="70"),
-                                 href="https://paradigmgenomics.org"),
-                          tags$a(img(src="https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/logos/hdr-cpg.png", 
-                                     width="140",height="70"),
-                                 href="https://www.epigenomicslab.com/brainisoform/"))
+                          radioButtons("rb", "Scale", choiceNames = list("Linear", "Log"), choiceValues = list("linear", "log"))
         ),
-        
         # Main panel for plot
         card(
             full_screen = TRUE,
-            plotlyOutput("plot")
+            plotlyOutput("plot") %>% withSpinner(color="#0dc5c1")
         ),
         card(
             htmlOutput("text")
-        )
+        ),
     )
 )
 
 # Define server logic
 server <- function(input, output, session) {
-    
     # Reactive expression to load and process expression data for selected groups
     dataset <- eventReactive(input$submit, {
         x1 <- fread(paste0('https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/data/',input$gene,'.txt.gz'), stringsAsFactors=F, data.table=F)
         names(x1)<-c('chr', 'pos', 'gene', 'total_exp', 'prenatal_exp', 'postnatal_exp', 'prenatal1sttrimester_exp', 
                      'prenatal2ndtrimester_exp', 'prenatal3rdtrimester_exp', 'postnatalchild_exp', 'postnataladult_exp','postnatalelderly_exp')
-        x1$bins <- cut_interval(x1$pos, length=10)
+        x1$bins <- cut_interval(x1$pos, length=input$width)
         x1
     }, ignoreNULL = T)
     
@@ -135,7 +136,7 @@ server <- function(input, output, session) {
             
             if(input$rb=='linear'){
                 p[[i]] <- plotly_build(plot_ly() %>% add_trace(dataset1(), x = dataset1()$midpos, y = dataset1()[,i], 
-                                                               color=~I(j), width = 10, type = 'bar', name=k, hoverinfo = "text", hovertext= 
+                                                               color=~I(j), width = input$width, type = 'bar', name=k, hoverinfo = "text", hovertext= 
                                                                    ~paste('<br><b>Position range</b>: ',dataset1()$chr,':',dataset1()$minpos,'-',dataset1()$maxpos,'<br>',
                                                                           
                                                                           '<br><b>Group</b>: ',i,'<br>',
@@ -184,10 +185,10 @@ server <- function(input, output, session) {
             p2 <- p2 %>% add_trace(
                 type = "scatter",
                 mode = "lines",
-                x = c(shape$x0, shape$x1),
-                y = c(shape$y0, shape$y1),
+                x = seq(shape$x0, shape$x1),
+                y = rep(1,shape$x1-shape$x0+1),
                 showlegend=F,
-                line = list(color = shape$line$color, width = shape$line$width),
+                color=shape$line$color,
                 text = shape$text,  # Add hover text here
                 hoverinfo = "text"   # Enable hoverinfo to display the 'text'
             )
