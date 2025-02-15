@@ -10,9 +10,33 @@ library(shinydisconnect)
 library(shinycssloaders)
 
 transcripts<-fread('https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/transcripts.txt', stringsAsFactors = F, data.table = F)
+jscode <- '
+$(function() {
+  var $els = $("[data-proxy-click]");
+  $.each(
+    $els,
+    function(idx, el) {
+      var $el = $(el);
+      var $proxy = $("#" + $el.data("proxyClick"));
+      $el.keydown(function (e) {
+        if (e.keyCode == 13) {
+          $proxy.click();
+        }
+      });
+    }
+  );
+});
+'
 
 # Define UI
 ui <- fluidPage(
+    tags$head(tags$script(HTML(jscode))),
+    tags$head(
+        tags$style(HTML(
+            ".control-label{
+                               font-weight:bold;
+                               }
+             "))),
     disconnectMessage(text = "App disconnected. Please see https://github.com/chundruv/LRBrainTranscriptCoverage. Run the app.R locally, no need to download data files",
                       refresh = "",
                       background = "#646464e6",
@@ -33,12 +57,17 @@ ui <- fluidPage(
                                       height="50"), href="https://www.epigenomicslab.com/brainisoform/")))
         )
     ),
-    theme = shinythemes::shinytheme("united"),
+    theme = bslib::bs_theme(bootswatch = "lux", font_scale = 0.9),
+    `data-proxy-click` = "submit",
     # Sidebar for inputs
     page_sidebar(
-        sidebar = sidebar(width = 250,
-                          textInput("gene", label = "Gene Name", value = "MYCBP2"),
-                          numericInput("width", label = "Number of bases to group by (for basepair resolution, enter 1, may be slower)", value=10),
+        sidebar = sidebar(width = 300,
+                          selectizeInput(
+                              inputId = 'gene',
+                              label = 'Please type gene name',
+                              choices = NULL
+                          ),
+                          numericInput("width", label = "Binwidth", value=10),
                           checkboxGroupInput(
                               "Groups1", 
                               label = "Broad developmental groups", 
@@ -69,8 +98,9 @@ ui <- fluidPage(
                               ),
                               selected = c()
                           ),
-                          actionButton("submit", "Submit!", icon("paper-plane"),style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
-                          radioButtons("rb", "Scale", choiceNames = list("Linear", "Log"), choiceValues = list("linear", "log"))
+                          radioButtons("rb", "Scale", choiceNames = list("Linear", "Log"), choiceValues = list("linear", "log")),
+                          actionButton("submit", "Submit!",style="color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                          
         ),
         # Main panel for plot
         card(
@@ -85,6 +115,8 @@ ui <- fluidPage(
 
 # Define server logic
 server <- function(input, output, session) {
+    
+    updateSelectizeInput(session, 'gene', choices = transcripts$gene_name, server = TRUE)
     # Reactive expression to load and process expression data for selected groups
     dataset <- eventReactive(input$submit, {
         x1 <- fread(paste0('https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/data/',input$gene,'.txt.gz'), stringsAsFactors=F, data.table=F)
@@ -147,7 +179,7 @@ server <- function(input, output, session) {
                                                showgrid = FALSE,
                                                showticklabels = FALSE  # Hide axis labels and ticks
                                            ),
-                                           yaxis = list(range=c(0,1),
+                                           yaxis = list(range=c(-0.1,1.1),
                                                         title = "", tickmode="array", tickvals=c(0,0.25,0.5,0.75,1)
                                            )))
             }else{
@@ -163,13 +195,13 @@ server <- function(input, output, session) {
                                                showgrid = FALSE,
                                                showticklabels = FALSE  # Hide axis labels and ticks
                                            ),
-                                           yaxis = list(type = 'log', range=c(-5,0), nticks=4,
+                                           yaxis = list(type = 'log', range=c(-5.1,0.1), nticks=6,exponentformat = "e",
                                                         title = ""
                                            )))
             }
         }
         
-        p1<-subplot(p, nrows = length(c(input$Groups1,input$Groups2,input$Groups3)), shareX = TRUE, shareY = TRUE)%>%
+        p1<-subplot(p, nrows = length(c(input$Groups1,input$Groups2,input$Groups3)), shareX = TRUE, shareY = TRUE,margin = 0.05)%>%
             layout(hovermode = 'x unified', xaxis = list(title = "", 
                                                          showgrid = FALSE,
                                                          showticklabels = FALSE
