@@ -57,7 +57,7 @@ ui <- fluidPage(
                                       height="50"), href="https://www.epigenomicslab.com/brainisoform/")))
         )
     ),
-    theme = bslib::bs_theme(bootswatch = "lux", font_scale = 0.9),
+    #theme = bslib::bs_theme(bootswatch = "lux", font_scale = 0.9),
     `data-proxy-click` = "submit",
     # Sidebar for inputs
     page_sidebar(
@@ -105,11 +105,11 @@ ui <- fluidPage(
         # Main panel for plot
         card(
             full_screen = TRUE,
-            plotlyOutput("plot") %>% withSpinner(color="#0dc5c1")
+            plotlyOutput("plot", height = "100%") %>% withSpinner(color="#0dc5c1") %>% bslib::as_fill_carrier()
         ),
         card(
             htmlOutput("text")
-        ),
+        )
     )
 )
 
@@ -201,7 +201,7 @@ server <- function(input, output, session) {
             }
         }
         
-        p1<-subplot(p, nrows = length(c(input$Groups1,input$Groups2,input$Groups3)), shareX = TRUE, shareY = TRUE,margin = 0.05)%>%
+        p1<-subplot(p, nrows = length(c(input$Groups1,input$Groups2,input$Groups3)), shareX = TRUE, shareY = TRUE)%>%
             layout(hovermode = 'x unified', xaxis = list(title = "", 
                                                          showgrid = FALSE,
                                                          showticklabels = FALSE
@@ -225,7 +225,7 @@ server <- function(input, output, session) {
                 hoverinfo = "text"   # Enable hoverinfo to display the 'text'
             )
         }
-        p2<-p2%>%layout(shapes = geneshapes(), xaxis=list(showgrid = FALSE,showticklabels = TRUE,title=""), 
+        p2<-p2%>%layout(shapes = geneshapes(), xaxis=list(showgrid = FALSE,showticklabels = TRUE,title=""),
                         yaxis=list(title = "", showgrid = FALSE, showticklabels = FALSE))
         
         if(transcripts[which(transcripts$gene_name==input$gene),3]=='+'){
@@ -237,7 +237,8 @@ server <- function(input, output, session) {
         }
         subplot(p1,p2, nrows=2, heights = c(0.9,0.1), shareX = T)%>%
             layout(title = list(text = paste0("Gene: ", input$gene, ';\tStrand: ', strand, "\nMANEselect: ", 
-                                              transcripts[which(transcripts$gene_name==input$gene),2])), margin=list(t=50))
+                                              transcripts[which(transcripts$gene_name==input$gene),2])), 
+                   margin=list(t=50))
         
     }, ignoreNULL = T)
     
