@@ -103,15 +103,27 @@ ui <- fluidPage(
                           
         ),
         # Main panel for plot
-        card(
+        navset_card_underline(
+            nav_panel( "Coverage",
             full_screen = TRUE,
             plotlyOutput("plot", height = "100%") %>% withSpinner(color="#0dc5c1") %>% bslib::as_fill_carrier()
         ),
-        card(
+        nav_panel( "Abundance",
             htmlOutput("text")
+        ),
+        nav_panel("About",
+                  HTML("Sample sizes:<br>
+                        Prenatal 1st trimester (6-14weeks) = 14<br>
+                       Prenatal 2nd trimester (14-27weeks) = 10<br>
+                       Prenatal 3rd trimester (27-birth) = 3<br>
+                       Postnatal child (0-18yrs) = 5<br>
+                       Postnatal adult (18-60yrs) = 10<br>
+                       Postnatal elderly (60-83yrs) = 5<br><br>
+                        <p> See <a href='https://www.epigenomicslab.com/brainisoform/'>https://www.epigenomicslab.com/brainisoform/</a> and </p><p><a href='isoforms.com'>isoforms.com</a> for further details and visulaisations of this data</p>
+                       <p>For further details of the samples and methods, and citation information, see <a href='https://www.biorxiv.org/content/10.1101/2024.05.24.595768'>our biorxiv preprint</a></p>")
         )
-    )
-)
+        )
+))
 
 # Define server logic
 server <- function(input, output, session) {
