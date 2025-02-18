@@ -120,8 +120,8 @@ server <- function(input, output, session) {
     # Reactive expression to load and process expression data for selected groups
     dataset <- eventReactive(input$submit, {
         x1 <- fread(paste0('https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/data/',input$gene,'.txt.gz'), stringsAsFactors=F, data.table=F)
-        names(x1)<-c('chr', 'pos', 'gene', 'total_exp', 'prenatal_exp', 'postnatal_exp', 'prenatal1sttrimester_exp', 
-                     'prenatal2ndtrimester_exp', 'prenatal3rdtrimester_exp', 'postnatalchild_exp', 'postnataladult_exp','postnatalelderly_exp')
+        names(x1)<-c('chr', 'pos', 'gene', 'total_exp', 'prenatal_exp', 'prenatal1sttrimester_exp', 
+                     'prenatal2ndtrimester_exp', 'prenatal3rdtrimester_exp', 'postnatal_exp', 'postnatalchild_exp', 'postnataladult_exp','postnatalelderly_exp')
         x1$bins <- cut_interval(x1$pos, length=input$width)
         x1
     }, ignoreNULL = T)
