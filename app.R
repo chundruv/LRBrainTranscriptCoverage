@@ -50,11 +50,11 @@ ui <- fluidPage(
         fluidRow(
             column(9, "Long read brain coverage"), 
             column(3, list(tags$a(img(src="https://github.githubassets.com/assets/GitHub-Mark-ea2971cee799.png", width="50", height="50"), 
-                                  href="https://github.com/chundruv/LRBrainTranscriptCoverage"),
+                                  href="https://github.com/chundruv/LRBrainTranscriptCoverage", target='_blank'),
                            tags$a(img(src="https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/logos/paradigm.png", width="150", 
-                                      height="50"), href="https://paradigmgenomics.org"),
+                                      height="50"), href="https://paradigmgenomics.org", target='_blank'),
                            tags$a(img(src="https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/logos/hdr-cpg.png",width="100",
-                                      height="50"), href="https://www.epigenomicslab.com/brainisoform/")))
+                                      height="50"), href="https://www.epigenomicslab.com/brainisoform/", target='_blank')))
         )
     ),
     #theme = bslib::bs_theme(bootswatch = "lux", font_scale = 0.9),
@@ -130,8 +130,8 @@ ui <- fluidPage(
                        Postnatal child (0-18yrs) = 5<br>
                        Postnatal adult (18-60yrs) = 10<br>
                        Postnatal elderly (60-83yrs) = 5<br><br>
-                        <p> See <a href='https://www.epigenomicslab.com/brainisoform/'>https://www.epigenomicslab.com/brainisoform/</a> and </p><p><a href='isoforms.com'>isoforms.com</a> for further details and visulaisations of this data</p>
-                       <p>For further details of the samples and methods, and citation information, see <a href='https://www.biorxiv.org/content/10.1101/2024.05.24.595768'>our biorxiv preprint</a></p>")
+                        <p> See <a href='https://www.epigenomicslab.com/brainisoform/' target='_blank'>https://www.epigenomicslab.com/brainisoform/</a> and </p><p><a href='isoforms.com' target='_blank'>isoforms.com</a> for further details and visulaisations of this data</p>
+                       <p>For further details of the samples and methods, and citation information, see <a href='https://www.biorxiv.org/content/10.1101/2024.05.24.595768' target='_blank'>our biorxiv preprint</a></p>")
         )
         )
 ))
@@ -325,10 +325,11 @@ server <- function(input, output, session) {
         gn=transcripts[which(transcripts$gene_name==input$gene),]
         HTML("Number of reads = ", gn$nreads, 
              "<br>Number of unique transcript isoforms = ", gn$ntranscripts, 
-             "<br>Number of FSM transcripts = ", gn$nFSM, " (", gn$nFSMreads, ' reads)', 
-             "<br>Number of ISM transcripts = ", gn$nISM, " (", gn$nISMreads, ' reads)',
-             "<br>Number of NIC transcripts = ", gn$nNIC, " (", gn$nNICreads, ' reads)',
-             "<br>Number of NNC transcripts = ", gn$nNNC, " (", gn$nNNCreads, ' reads)')}, ignoreNULL = T)
+             "<br>Number of full-splice match transcripts = ", gn$nFSM, " (", gn$nFSMreads, ' reads)', 
+             "<br>Number of incomplete-splice match transcripts = ", gn$nISM, " (", gn$nISMreads, ' reads)',
+             "<br>Number of novel in catalog transcripts = ", gn$nNIC, " (", gn$nNICreads, ' reads)',
+             "<br>Number of novel not in catalog transcripts = ", gn$nNNC, " (", gn$nNNCreads, ' reads)',
+             "<br><p> See <a href='https://github.com/ConesaLab/SQANTI3/wiki/SQANTI3-isoform-classification:-categories-and-subcategories' target='_blank'>here</a> for details on the classification groups </p>")}, ignoreNULL = T)
     output$text<-renderText({text()})
 }
 
