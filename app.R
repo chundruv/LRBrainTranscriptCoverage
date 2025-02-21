@@ -69,6 +69,16 @@ ui <- fluidPage(
                           ),
                           numericInput("width", label = "Binwidth", value=10),
                           checkboxGroupInput(
+                              "regions", 
+                              label = "Show covereage by predicted consequence", 
+                              choices = c(
+                                  "Show CDS" = 'cds',
+                                  "Show UTR" = 'utr',
+                                  "Show non-coding" = 'nc'
+                              ),
+                              selected = c('cds', 'utr', 'nc')
+                          ),
+                          checkboxGroupInput(
                               "Groups1", 
                               label = "Broad developmental groups", 
                               choices = c(
@@ -103,9 +113,10 @@ ui <- fluidPage(
                           
         ),
         # Main panel for plot
-        navset_card_underline(
-            nav_panel( "Coverage",
+        navset_card_tab(
             full_screen = TRUE,
+            nav_panel( "Coverage",
+            
             plotlyOutput("plot", height = "100%") %>% withSpinner(color="#0dc5c1") %>% bslib::as_fill_carrier()
         ),
         nav_panel( "Abundance",
@@ -132,14 +143,12 @@ server <- function(input, output, session) {
     # Reactive expression to load and process expression data for selected groups
     dataset <- eventReactive(input$submit, {
         x1 <- fread(paste0('https://github.com/chundruv/LRBrainTranscriptCoverage/raw/refs/heads/main/data/',input$gene,'.txt.gz'), stringsAsFactors=F, data.table=F)
-        names(x1)<-c('chr', 'pos', 'gene', 'total_exp', 'prenatal_exp', 'prenatal1sttrimester_exp', 
-                     'prenatal2ndtrimester_exp', 'prenatal3rdtrimester_exp', 'postnatal_exp', 'postnatalchild_exp', 'postnataladult_exp','postnatalelderly_exp')
         x1$bins <- cut_interval(x1$pos, length=input$width)
         x1
     }, ignoreNULL = T)
     
     dataset1 <- eventReactive(input$submit, {
-        tmp<-dataset()%>%group_by(bins)%>%
+        tmp<-dataset()%>%group_by(bins, region)%>%
             summarise(chr=unique(chr), minpos=min(pos), maxpos=max(pos), 
                       midpos=mean(pos),total_exp=mean(total_exp), prenatal_exp=mean(prenatal_exp), postnatal_exp=mean(postnatal_exp), 
                       prenatal1sttrimester_exp=mean(prenatal1sttrimester_exp), prenatal2ndtrimester_exp=mean(prenatal2ndtrimester_exp), 
@@ -155,18 +164,17 @@ server <- function(input, output, session) {
     # Render the plot
     
     plot<-eventReactive(input$submit,{
+        x<-dataset1()
+        annotations<-list()
         p<-list()
+        count<-0
         for(i in unique(c(input$Groups1,input$Groups2,input$Groups3))){
-            j <- switch(i,
-                        'total_exp' = "#999999",
-                        'prenatal_exp' = "#E69F00",
-                        'postnatal_exp' = "#56B4E9",
-                        'prenatal1sttrimester_exp' = "#009E73",
-                        'prenatal2ndtrimester_exp' = "#CC79A7",
-                        'prenatal3rdtrimester_exp' = "#0072B2",
-                        'postnatalchild_exp' = "#D55E00",
-                        'postnataladult_exp' = "#41ab5d",
-                        'postnatalelderly_exp' = "#000000")
+            if(count==0){
+                showleg<-T
+            }else{
+                showleg<-F
+            }
+            count<-1
             k <- switch(i,
                         'total_exp' = "Total expression",
                         'prenatal_exp' = "Prenatal expression",
@@ -177,41 +185,100 @@ server <- function(input, output, session) {
                         'postnatalchild_exp' = "Child expression",
                         'postnataladult_exp' = "Adult expression",
                         'postnatalelderly_exp' = "Older adult expression")
-            
+
             if(input$rb=='linear'){
-                p[[i]] <- plotly_build(plot_ly() %>% add_trace(dataset1(), x = dataset1()$midpos, y = dataset1()[,i], 
-                                                               color=~I(j), width = input$width, type = 'bar', name=k, hoverinfo = "text", hovertext= 
-                                                                   ~paste('<br><b>Position range</b>: ',dataset1()$chr,':',dataset1()$minpos,'-',dataset1()$maxpos,'<br>',
-                                                                          
-                                                                          '<br><b>Group</b>: ',i,'<br>',
-                                                                          
-                                                                          '<br><b>Mean PEXT</b>: ',format(round(dataset1()[,i], 4), nsmall = 4),'<br>'))%>%
-                                           layout(hovermode = 'x unified', xaxis = list(
-                                               title = "",
-                                               showgrid = FALSE,
-                                               showticklabels = FALSE  # Hide axis labels and ticks
-                                           ),
-                                           yaxis = list(range=c(-0.1,1.1),
-                                                        title = "", tickmode="array", tickvals=c(0,0.25,0.5,0.75,1)
-                                           )))
+                p[[i]] <- plot_ly() 
+                if('cds'%in%input$regions){
+                    p[[i]] <- p[[i]]%>% add_trace(x[which(x$region=='CDS'),], x = x[which(x$region=='CDS'),]$midpos, y = x[which(x$region=='CDS'),i], 
+                                                  color=~I("#56B4E9"),width = 10, type = 'bar', name="CDS", showlegend=showleg, hoverinfo = "text", hovertext= 
+                                                      ~paste('<br><b>Position range</b>: ',x[which(x$region=='CDS'),]$chr,':',x[which(x$region=='CDS'),]$minpos,'-',x[which(x$region=='CDS'),]$maxpos,'<br>',
+                                                             '<br><b>Group</b>: ',i,'<br>',
+                                                             '<br><b>Region</b>: CDS<br>',
+                                                             '<br><b>Mean PEXT</b>: ',format(round(x[which(x$region=='CDS'),i], 4), nsmall = 4),'<br>'))
+                }
+                if('utr'%in%input$regions){
+                    p[[i]] <- p[[i]]%>% add_trace(x[which(x$region=='UTR'),], x = x[which(x$region=='UTR'),]$midpos, y = x[which(x$region=='UTR'),i], 
+                                                  color=~I("#E69F00"), width = 10, type = 'bar', name="UTR",showlegend=showleg, hoverinfo = "text", hovertext= 
+                                                      ~paste('<br><b>Position range</b>: ',x[which(x$region=='UTR'),]$chr,':',x[which(x$region=='UTR'),]$minpos,'-',x[which(x$region=='UTR'),]$maxpos,'<br>',
+                                                             '<br><b>Group</b>: ',i,'<br>',
+                                                             '<br><b>Region</b>: UTR<br>',
+                                                             '<br><b>Mean PEXT</b>: ',format(round(x[which(x$region=='UTR'),i], 4), nsmall = 4),'<br>'))
+                }
+                if('nc'%in%input$regions){
+                    p[[i]] <- p[[i]]%>% add_trace(x[which(x$region=='non-coding'),], x = x[which(x$region=='non-coding'),]$midpos, y = x[which(x$region=='non-coding'),i], 
+                                                  color=~I("#999999"), width = 10, type = 'bar', name="non-coding",showlegend=showleg, hoverinfo = "text", hovertext= 
+                                                      ~paste('<br><b>Position range</b>: ',x[which(x$region=='non-coding'),]$chr,':',x[which(x$region=='non-coding'),]$minpos,'-',x[which(x$region=='non-coding'),]$maxpos,'<br>',
+                                                             '<br><b>Group</b>: ',i,'<br>',
+                                                             '<br><b>Region</b>: non-coding<br>',
+                                                             '<br><b>Mean PEXT</b>: ',format(round(x[which(x$region=='non-coding'),i], 4), nsmall = 4),'<br>'))
+                }          
+                p[[i]] <-plotly_build(p[[i]]%>%
+                                          layout(hovermode = 'x unified', barmode = 'stack', xaxis = list(
+                                              title = "",
+                                              showgrid = FALSE,
+                                              showticklabels = FALSE  # Hide axis labels and ticks
+                                          ),
+                                          yaxis = list(range=c(-0.1,1.1),
+                                                       title = "", tickmode="array", tickvals=c(0,0.25,0.5,0.75,1)
+                                          ))%>%
+                                          add_annotations(
+                                              text = ~I(k),
+                                              x = 0.1,
+                                              y = 1+((length(unique(c(input$Groups1,input$Groups2,input$Groups3)))*0.8-2)/10),
+                                              yref = "paper",
+                                              xref = "paper",
+                                              xanchor = "center",
+                                              yanchor = "top",
+                                              showarrow = FALSE,
+                                              font = list(size = 15)
+                                          ))
             }else{
-                p[[i]] <- plotly_build(plot_ly() %>% add_trace(dataset1(), x = dataset1()$midpos, y = dataset1()[,i], 
-                                                               color=~I(j), width = 10, type = 'bar', name=k, hoverinfo = "text", hovertext= 
-                                                                   ~paste('<br><b>Position range</b>: ',dataset1()$chr,':',dataset1()$minpos,'-',dataset1()$maxpos,'<br>',
-                                                                          
-                                                                          '<br><b>Group</b>: ',i,'<br>',
-                                                                          
-                                                                          '<br><b>Mean PEXT</b>: ',format(round(dataset1()[,i], 4), nsmall = 4),'<br>'))%>%
-                                           layout(hovermode = 'x unified', xaxis = list(
-                                               title = "",
-                                               showgrid = FALSE,
-                                               showticklabels = FALSE  # Hide axis labels and ticks
-                                           ),
-                                           yaxis = list(type = 'log', range=c(-5.1,0.1), nticks=6,exponentformat = "e",
-                                                        title = ""
-                                           )))
-            }
-        }
+                p[[i]] <- plot_ly() 
+                if('cds'%in%input$regions){
+                    p[[i]] <- p[[i]]%>% add_trace(x[which(x$region=='CDS'),], x = x[which(x$region=='CDS'),]$midpos, y = x[which(x$region=='CDS'),i], 
+                                                  color=~I("#56B4E9"), width = input$width, type = 'bar', name="CDS", showlegend=showleg, hoverinfo = "text", hovertext= 
+                                                      ~paste('<br><b>Position range</b>: ',x[which(x$region=='CDS'),]$chr,':',x[which(x$region=='CDS'),]$minpos,'-',x[which(x$region=='CDS'),]$maxpos,'<br>',
+                                                             '<br><b>Group</b>: ',i,'<br>',
+                                                             '<br><b>Region</b>: CDS<br>',
+                                                             '<br><b>Mean PEXT</b>: ',format(round(x[which(x$region=='CDS'),i], 4), nsmall = 4),'<br>'))
+                }
+                if('utr'%in%input$regions){
+                    p[[i]] <- p[[i]]%>% add_trace(x[which(x$region=='UTR'),], x = x[which(x$region=='UTR'),]$midpos, y = x[which(x$region=='UTR'),i], 
+                                                  color=~I("#E69F00"), width = input$width, type = 'bar', name="UTR",showlegend=showleg, hoverinfo = "text", hovertext= 
+                                                      ~paste('<br><b>Position range</b>: ',x[which(x$region=='UTR'),]$chr,':',x[which(x$region=='UTR'),]$minpos,'-',x[which(x$region=='UTR'),]$maxpos,'<br>',
+                                                             '<br><b>Group</b>: ',i,'<br>',
+                                                             '<br><b>Region</b>: UTR<br>',
+                                                             '<br><b>Mean PEXT</b>: ',format(round(x[which(x$region=='UTR'),i], 4), nsmall = 4),'<br>'))
+                }
+                if('nc'%in%input$regions){
+                    p[[i]] <- p[[i]]%>% add_trace(x[which(x$region=='non-coding'),], x = x[which(x$region=='non-coding'),]$midpos, y = x[which(x$region=='non-coding'),i], 
+                                                  color=~I("#999999"), width = input$width, type = 'bar', name="non-coding",showlegend=showleg, hoverinfo = "text", hovertext= 
+                                                      ~paste('<br><b>Position range</b>: ',x[which(x$region=='non-coding'),]$chr,':',x[which(x$region=='non-coding'),]$minpos,'-',x[which(x$region=='non-coding'),]$maxpos,'<br>',
+                                                             '<br><b>Group</b>: ',i,'<br>',
+                                                             '<br><b>Region</b>: non-coding<br>',
+                                                             '<br><b>Mean PEXT</b>: ',format(round(x[which(x$region=='non-coding'),i], 4), nsmall = 4),'<br>'))
+                }          
+                p[[i]] <-plotly_build(p[[i]]%>%
+                                          layout(hovermode = 'x unified', barmode = 'stack', xaxis = list(
+                                              title = "",
+                                              showgrid = FALSE,
+                                              showticklabels = FALSE  # Hide axis labels and ticks
+                                          ),
+                                          yaxis = list(type = 'log', range=c(-5.1,0.1), nticks=6,exponentformat = "e",
+                                                       title = ""
+                                          ))%>%
+                                          add_annotations(
+                                              text = ~I(k),
+                                              x = 0.1,
+                                              y = 1+((length(unique(c(input$Groups1,input$Groups2,input$Groups3)))-3)/10),
+                                              yref = "paper",
+                                              xref = "paper",
+                                              xanchor = "center",
+                                              yanchor = "top",
+                                              showarrow = FALSE,
+                                              font = list(size = 15)
+                                          ))
+            }}
         
         p1<-subplot(p, nrows = length(c(input$Groups1,input$Groups2,input$Groups3)), shareX = TRUE, shareY = TRUE)%>%
             layout(hovermode = 'x unified', xaxis = list(title = "", 
@@ -221,7 +288,6 @@ server <- function(input, output, session) {
             yaxis = list(
                 title = ""
             ), legend = list(orientation = 'h'))
-        
         
         p2<-plot_ly()
         for (i in 1:length(geneshapes())) {
