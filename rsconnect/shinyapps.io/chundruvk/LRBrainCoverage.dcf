@@ -1,0 +1,10 @@
+name: LRBrainCoverage
+title:
+username: chundruvk
+account: chundruvk
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 13968791
+bundleId: 12740282
+url: https://chundruvk.shinyapps.io/LRBrainCoverage/
+version: 1

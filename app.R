@@ -107,6 +107,9 @@ They differ in how much read support an isoform needs:</p>
 <li><b>&ge;10 reads in &ge;10 samples</b> &ndash; high-confidence isoforms, recommended default.</li>
 <li><b>&ge;2 reads in &ge;2 samples</b> &ndash; permissive, includes rarer isoforms. Expect more mixed CDS/UTR calls.</li>
 </ul>
+<p>Isoforms assigned to the wrong strand were removed from both sets. These are isoforms in which no junction is canonical
+on the assigned strand but every junction is canonical (GT-AG, GC-AG, AT-AC) on the opposite strand. Isoforms carrying a
+CT-AC junction within an otherwise canonical isoform were also removed.</p>
 <p>Only the 47 whole-transcriptome cortex samples contribute to the coverage values. The Targeted panel samples are not used.</p>
 ")
 

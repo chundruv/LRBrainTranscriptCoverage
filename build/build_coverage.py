@@ -6,7 +6,8 @@ For one SQANTI filtered set (CPAT CDS GTF + SQANTI classification with per-sampl
 Region labels come from each transcript's own CPAT ORF: CDS, 5'UTR, 3'UTR, or non-coding
 (transcripts with no CPAT ORF above the coding threshold). Only Whole transcriptome samples are used.
 
-Usage: python build_coverage.py <gtf> <classification> <sample_ages.tsv> <mane_genes.tsv> <outdir>
+Usage: python build_coverage.py <gtf> <classification> <sample_ages.tsv> <mane_genes.tsv> <outdir> [exclude_isoforms.tsv]
+Isoforms in the optional exclusion list (first column) are dropped, e.g. mis-stranded isoforms.
 """
 import sys, os, re
 import numpy as np
@@ -43,6 +44,10 @@ feat = pd.concat([
     gtf[gtf.tx.isin(coding_tx) & (gtf.type != 'exon')],
     gtf[~gtf.tx.isin(coding_tx) & (gtf.type == 'exon')],
 ])
+if len(sys.argv) > 6:
+    drop = set(pd.read_csv(sys.argv[6], sep='\t').iloc[:, 0])
+    feat = feat[~feat.tx.isin(drop)]
+    print('excluded isoforms', len(drop), flush=True)
 feat['region'] = feat.type.map({'CDS': 'CDS', 'five_prime_UTR': "5'UTR", 'three_prime_UTR': "3'UTR", 'exon': 'non-coding'})
 
 # check that CDS + UTR features tile the exons of coding transcripts
